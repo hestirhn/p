@@ -4,7 +4,7 @@ opencv-python==4.10.0.84
 opencv-python-headless==4.10.0.84
 Pillow
 requests==2.31.0
-streamlit
+streamlit==1.36.0
 streamlit-webrtc==0.47.1
 supervision==0.16.0
 ultralytics==8.0.208
