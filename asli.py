@@ -19,7 +19,7 @@ import supervision as sv
 # Set the environment variable
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 logging.basicConfig(level=logging.WARNING)
-st.set_page_config(page_title="Ai Object Detection", page_icon="🤖")
+st.set_page_config(page_title="YOLOvWeld", page_icon="🤖")
 
 # Define the zone polygon
 zone_polygon_m = np.array([[160, 100], 
@@ -70,10 +70,10 @@ def draw_annotations(frame, boxes, masks, names):
     return frame
 
 def main():
-    st.title("🤖 Ai Object Detection")
-    st.subheader("YOLOv8 & Streamlit WebRTC Integration :)")
+    st.title("🤖 YOLOvWeld")
+    st.subheader("YOLOv8 & Streamlit Web Integration")
     st.sidebar.title("Select an option ⤵️")
-    choice = st.sidebar.radio("", ("Capture Image And Predict", ":rainbow[Multiple Images Upload -]🖼️🖼️🖼️", "Upload Video"),
+    choice = st.sidebar.radio("", ("Capture Image And Predict", ":rainbow[Multiple Images Upload -]🖼️🖼️🖼️"),
                             index = 1)
     conf = st.slider("Score threshold", 0.0, 1.0, 0.3, 0.05)
         
@@ -149,62 +149,6 @@ def main():
             st.write(':orange[ Info : ⤵️ ]')
             st.json(labels1)
             st.subheader("", divider='rainbow')
-    elif choice == "Upload Video":
-        st.title("🏗️Work in Progress📽️🎞️")
-        clip = st.file_uploader("Choose a video file", type=['mp4'])
-
-        if clip:
-            video_content = clip.read()
-            video_buffer = BytesIO(video_content)
-            st.video(video_buffer)
-            with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as temp_file:
-                temp_filename = temp_file.name
-                temp_file.write(video_content)
-
-                results = model(temp_filename, show=False, stream=True, save=False)
-                for r in results:
-                    boxes = r.boxes
-                    masks = r.masks
-                    probs = r.probs
-                    orig_img = r.orig_img
-                    video_path = temp_filename
-
-                    cap = cv2.VideoCapture(video_path)
-                    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-                    with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as temp_file_o:
-                        temp_filename1 = temp_file_o.name
-                        output_path = temp_filename1
-                        out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'mp4v'), 30.0, (int(cap.get(3)), int(cap.get(4))))
-                        results_list = list(results)
-                        for frame_number in range(len(results_list)):
-                            ret, frame = cap.read()
-                            
-                            results_for_frame = results_list[frame_number]
-                            boxes = results_for_frame.boxes.xyxy.cpu().numpy()
-                            masks = results_for_frame.masks.tensor.cpu().numpy() if results_for_frame.masks is not None else None
-                            if results_for_frame.probs is not None:
-                                class_names_dict = results_for_frame.names
-                                class_indices = results_for_frame.probs.argmax(dim=1).cpu().numpy()
-                                class_names = [class_names_dict[class_idx] for class_idx in class_indices]
-                            else:
-                                class_names = []
-
-                            annotated_frame = draw_annotations(frame.copy(), boxes, masks, class_names)
-                            out.write(annotated_frame)
-                            
-                        cap.release()
-                        out.release()
-
-                        video_bytes = open(output_path, "rb")
-                        video_buffer2 = video_bytes.read()
-                        st.video(video_buffer2)
-                        st.success("Video processing completed.")
-
-    st.subheader("", divider='rainbow')
-    st.write(':orange[ Classes : ⤵️ ]')
-    cls_name = model.names
-    cls_lst = list(cls_name.values())
-    st.write(f':orange[{cls_lst}]')
 
 if __name__ == '__main__':
     main()
