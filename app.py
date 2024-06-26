@@ -135,16 +135,14 @@ def main():
                     data=image_bytes,
                     file_name="detected_image.jpg",
                     mime="image/jpeg"
-
+                )
+                st.download_button(
                     label="Download Detections Info",
                     data=json.dumps(data_to_download),
                     file_name="detections_info.json",
                     mime="application/json"
-                
                 )
             
-             
-
     elif choice == ":rainbow[Multiple Images Upload -]🖼️🖼️🖼️":
         uploaded_files = st.file_uploader("Choose images", type=['png', 'jpg', 'webp', 'bmp'], accept_multiple_files=True)
         for uploaded_file in uploaded_files:
@@ -177,7 +175,6 @@ def main():
             st.subheader("", divider='rainbow')
 
             # Create download buttons for image and JSON
-                 # Create download buttons for image and JSON
             if st.button("Save Image with Detections"):
                 save_path = "detected_image.jpg"
                 cv2.imwrite(save_path, annotated_frame1)
@@ -191,12 +188,12 @@ def main():
                     data=image_bytes,
                     file_name="detected_image.jpg",
                     mime="image/jpeg"
-
+                )
+                st.download_button(
                     label="Download Detections Info",
                     data=json.dumps(data_to_download),
                     file_name="detections_info.json",
                     mime="application/json"
-                
                 )
 
 if __name__ == '__main__':
