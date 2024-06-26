@@ -105,11 +105,6 @@ def main():
             detections = sv.Detections.from_ultralytics(results1)
             detections = detections[detections.confidence > conf]
             labels = [
-                f"#{index + 1}: {results1.names[class_id]}"
-                for index, class_id in enumerate(detections.class_id)
-            ]
-
-            labels1 = [
                 f"#{index + 1}: {results1.names[class_id]} (Accuracy: {detections.confidence[index]:.2f})"
                 for index, class_id in enumerate(detections.class_id)
             ]
@@ -121,7 +116,7 @@ def main():
             annotated_frame = av.VideoFrame.from_ndarray(annotated_frame1, format="bgr24")
             st.image(annotated_frame.to_ndarray(), channels="BGR")
             st.write(':orange[ Info : ⤵️ ]')
-            st.json(labels1)
+            st.json(labels)
             st.subheader("", divider='rainbow')
 
             # Button to save image with detections
@@ -135,11 +130,16 @@ def main():
                 st.write("Detections saved to detections.json")
 
                 # Download button for image
+                data_to_download = {
+                    "image_path": save_path,
+                    "detections": labels,
+                    "score_threshold": conf
+                }
                 st.download_button(
                     label="Download Image with Detections",
-                    data=open(save_path, 'rb').read(),
-                    file_name="detected_image.jpg",
-                    mime="image/jpeg"
+                    data=json.dumps(data_to_download),
+                    file_name="detected_image_info.json",
+                    mime="application/json"
                 )
 
     elif choice == ":rainbow[Multiple Images Upload -]🖼️🖼️🖼️":
@@ -160,11 +160,6 @@ def main():
             detections = sv.Detections.from_ultralytics(results1)
             detections = detections[detections.confidence > conf]
             labels = [
-                f"#{index + 1}: {results1.names[class_id]}"
-                for index, class_id in enumerate(detections.class_id)
-            ]
-
-            labels1 = [
                 f"#{index + 1}: {results1.names[class_id]} (Accuracy: {detections.confidence[index]:.2f})"
                 for index, class_id in enumerate(detections.class_id)
             ]
@@ -176,7 +171,7 @@ def main():
             annotated_frame = av.VideoFrame.from_ndarray(annotated_frame1, format="bgr24")
             st.image(annotated_frame.to_ndarray(), channels="BGR")
             st.write(':orange[ Info : ⤵️ ]')
-            st.json(labels1)
+            st.json(labels)
             st.subheader("", divider='rainbow')
 
             # Button to save image with detections
@@ -190,11 +185,16 @@ def main():
                 st.write(f"Detections saved to {uploaded_file.name}_detections.json")
 
                 # Download button for image
+                data_to_download = {
+                    "image_path": save_path,
+                    "detections": labels,
+                    "score_threshold": conf
+                }
                 st.download_button(
                     label=f"Download {uploaded_file.name} with Detections",
-                    data=open(save_path, 'rb').read(),
-                    file_name=f"{uploaded_file.name}_detected.jpg",
-                    mime="image/jpeg"
+                    data=json.dumps(data_to_download),
+                    file_name=f"{uploaded_file.name}_detected_info.json",
+                    mime="application/json"
                 )
 
     elif choice == "Upload Video":
