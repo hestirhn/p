@@ -127,6 +127,9 @@ def main():
                 cv2.imwrite(save_path, annotated_frame1)
                 st.success(f"Image with detections saved as {save_path}")
             
+                # Save detections info to JSON
+                save_detections_to_json("detections_info.json", save_path, detections, conf)
+                
                 # Create download link for image
                 with open(save_path, "rb") as f:
                     image_bytes = f.read()
@@ -138,7 +141,7 @@ def main():
                 )
                 st.download_button(
                     label="Download Detections Info",
-                    data=json.dumps(data_to_download),
+                    data=json.dumps(info),
                     file_name="detections_info.json",
                     mime="application/json"
                 )
@@ -180,6 +183,9 @@ def main():
                 cv2.imwrite(save_path, annotated_frame1)
                 st.success(f"Image with detections saved as {save_path}")
             
+                # Save detections info to JSON
+                save_detections_to_json("detections_info.json", save_path, detections, conf)
+                
                 # Create download link for image
                 with open(save_path, "rb") as f:
                     image_bytes = f.read()
@@ -191,10 +197,9 @@ def main():
                 )
                 st.download_button(
                     label="Download Detections Info",
-                    data=json.dumps(data_to_download),
+                    data=json.dumps(info),
                     file_name="detections_info.json",
                     mime="application/json"
                 )
-
 if __name__ == '__main__':
     main()
