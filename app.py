@@ -134,14 +134,6 @@ def main():
                 save_detections_to_json(detections, "detections.json")
                 st.write("Detections saved to detections.json")
 
-                # Download button for image
-                st.download_button(
-                    label="Download Image with Detections",
-                    data=open(save_path, 'rb').read(),
-                    file_name="detected_image.jpg",
-                    mime="image/jpeg"
-                )
-
     elif choice == ":rainbow[Multiple Images Upload -]🖼️🖼️🖼️":
         uploaded_files = st.file_uploader("Choose images", type=['png', 'jpg', 'webp', 'bmp'], accept_multiple_files=True)
         for uploaded_file in uploaded_files:
@@ -189,14 +181,6 @@ def main():
                 save_detections_to_json(detections, f"{uploaded_file.name}_detections.json")
                 st.write(f"Detections saved to {uploaded_file.name}_detections.json")
 
-                # Download button for image
-                st.download_button(
-                    label=f"Download {uploaded_file.name} with Detections",
-                    data=open(save_path, 'rb').read(),
-                    file_name=f"{uploaded_file.name}_detected.jpg",
-                    mime="image/jpeg"
-                )
-
     elif choice == "Upload Video":
         st.title("🏗️Work in Progress📽️🎞️")
         clip = st.file_uploader("Choose a video file", type=['mp4'])
@@ -210,6 +194,7 @@ def main():
                 temp_file.write(video_content)
 
                 results = model(temp_filename, show=False, stream=True, save=False)
+                detections_list = []
                 for r in results:
                     boxes = r.boxes
                     masks = r.masks
@@ -240,6 +225,14 @@ def main():
                             annotated_frame = draw_annotations(frame.copy(), boxes, masks, class_names)
                             out.write(annotated_frame)
 
+                            detections_list.append({
+                                "frame": frame_number,
+                                "detections": [{
+                                    "box": box.tolist(),
+                                    "class_name": class_name
+                                } for box, class_name in zip(boxes, class_names)]
+                            })
+                            
                         cap.release()
                         out.release()
 
