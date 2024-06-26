@@ -16,6 +16,7 @@ from streamlit_webrtc import (
 from ultralytics import YOLO
 import supervision as sv
 import json
+import shutil
 
 # Set the environment variable
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -70,15 +71,21 @@ def draw_annotations(frame, boxes, masks, names):
 
     return frame
 
-def save_detections_to_json(detections, file_path):
+def save_detections_to_json(file_path, image_path, detections, score_threshold):
     detections_data = [{
         "box": box.tolist(),
         "confidence": float(conf),
         "class_id": int(class_id)
     } for box, conf, class_id in zip(detections.xyxy, detections.confidence, detections.class_id)]
     
+    info = {
+        "image_path": image_path,
+        "score_threshold": score_threshold,
+        "detections": detections_data
+    }
+    
     with open(file_path, 'w') as f:
-        json.dump(detections_data, f)
+        json.dump(info, f)
 
 def main():
     st.title("🤖 Ai Object Detection")
@@ -121,24 +128,28 @@ def main():
 
             # Button to save image with detections
             if st.button("Save Image with Detections"):
-                save_path = "detected_image.jpg"
-                cv2.imwrite(save_path, annotated_frame1)
-                st.success(f"Image with detections saved as {save_path}")
+                # Create downloads directory if it doesn't exist
+                if not os.path.exists("downloads"):
+                    os.makedirs("downloads")
 
-                save_path_png = "detected_image.png"
+                save_path_jpg = os.path.join("downloads", "detected_image.jpg")
+                cv2.imwrite(save_path_jpg, annotated_frame1)
+                st.success(f"Image with detections saved as detected_image.jpg")
+
+                save_path_png = os.path.join("downloads", "detected_image.png")
                 cv2.imwrite(save_path_png, cv2.cvtColor(annotated_frame1, cv2.COLOR_BGR2RGB))
-                st.success(f"Image with detections saved as {save_path_png}")
+                st.success(f"Image with detections saved as detected_image.png")
 
                 # Save detections to JSON file
-                save_detections_to_json(detections, "detections.json")
-                st.write("Detections saved to detections.json")
+                save_detections_to_json(os.path.join("downloads", "detections.json"), save_path_jpg, detections, conf)
+                st.write("Detections info saved to detections.json")
 
-                # Download buttons for image
+                # Create download buttons for image and JSON
                 data_to_download = {
-                    "image_path_jpg": save_path,
+                    "image_path_jpg": save_path_jpg,
                     "image_path_png": save_path_png,
-                    "detections": labels,
-                    "score_threshold": conf
+                    "score_threshold": conf,
+                    "detections": labels
                 }
                 st.download_button(
                     label="Download Image with Detections (JPG)",
@@ -151,6 +162,12 @@ def main():
                     data=json.dumps(data_to_download),
                     file_name="detected_image_info.png",
                     mime="image/png"
+                )
+                st.download_button(
+                    label="Download Detections Info",
+                    data=json.dumps(data_to_download),
+                    file_name="detections_info.json",
+                    mime="application/json"
                 )
 
     elif choice == ":rainbow[Multiple Images Upload -]🖼️🖼️🖼️":
@@ -187,24 +204,28 @@ def main():
 
             # Button to save image with detections
             if st.button(f"Save {uploaded_file.name} with Detections"):
-                save_path = f"{uploaded_file.name}_detected.jpg"
-                cv2.imwrite(save_path, annotated_frame1)
-                st.success(f"Image with detections saved as {save_path}")
+                # Create downloads directory if it doesn't exist
+                if not os.path.exists("downloads"):
+                    os.makedirs("downloads")
 
-                save_path_png = f"{uploaded_file.name}_detected.png"
+                save_path_jpg = os.path.join("downloads", f"{uploaded_file.name}_detected.jpg")
+                cv2.imwrite(save_path_jpg, annotated_frame1)
+                st.success(f"{uploaded_file.name} with detections saved as {uploaded_file.name}_detected.jpg")
+
+                save_path_png = os.path.join("downloads", f"{uploaded_file.name}_detected.png")
                 cv2.imwrite(save_path_png, cv2.cvtColor(annotated_frame1, cv2.COLOR_BGR2RGB))
-                st.success(f"Image with detections saved as {save_path_png}")
+                st.success(f"{uploaded_file.name} with detections saved as {uploaded_file.name}_detected.png")
 
                 # Save detections to JSON file
-                save_detections_to_json(detections, f"{uploaded_file.name}_detections.json")
-                st.write(f"Detections saved to {uploaded_file.name}_detections.json")
+                save_detections_to_json(os.path.join("downloads", f"{uploaded_file.name}_detections.json"), save_path_jpg, detections, conf)
+                st.write(f"Detections info saved to {uploaded_file.name}_detections.json")
 
-                # Download buttons for image
+                # Create download buttons for image and JSON
                 data_to_download = {
-                    "image_path_jpg": save_path,
+                    "image_path_jpg": save_path_jpg,
                     "image_path_png": save_path_png,
-                    "detections": labels,
-                    "score_threshold": conf
+                    "score_threshold": conf,
+                    "detections": labels
                 }
                 st.download_button(
                     label=f"Download {uploaded_file.name} with Detections (JPG)",
@@ -217,6 +238,12 @@ def main():
                     data=json.dumps(data_to_download),
                     file_name=f"{uploaded_file.name}_detected_info.png",
                     mime="image/png"
+                )
+                st.download_button(
+                    label=f"Download {uploaded_file.name} Detections Info",
+                    data=json.dumps(data_to_download),
+                    file_name=f"{uploaded_file.name}_detections_info.json",
+                    mime="application/json"
                 )
 
     elif choice == "Upload Video":
@@ -270,10 +297,27 @@ def main():
                         st.video(video_buffer2)
                         st.success("Video processing completed.")
 
+                        # Create downloads directory if it doesn't exist
+                        if not os.path.exists("downloads"):
+                            os.makedirs("downloads")
+
                         # Save detections to JSON file
-                        with open("video_detections.json", 'w') as f:
+                        detections_list = []
+                        for result in results:
+                            detections = result.boxes.xyxy.cpu().numpy()
+                            confidences = result.scores.cpu().numpy()
+                            class_ids = result.pred.cpu().numpy()
+
+                            for box, conf, class_id in zip(detections, confidences, class_ids):
+                                detections_list.append({
+                                    "box": box.tolist(),
+                                    "confidence": float(conf),
+                                    "class_id": int(class_id)
+                                })
+
+                        with open(os.path.join("downloads", "video_detections.json"), 'w') as f:
                             json.dump(detections_list, f)
-                        st.write("Detections saved to video_detections.json")
+                        st.write("Detections saved to downloads/video_detections.json")
 
     st.subheader("", divider='rainbow')
     st.write(':orange[ Classes : ⤵️ ]')
