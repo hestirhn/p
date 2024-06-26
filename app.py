@@ -126,28 +126,10 @@ def main():
             st.json(labels)
             st.subheader("", divider='rainbow')
 
-            # Button to save image with detections
-            if st.button("Save Image with Detections"):
-                # Create downloads directory if it doesn't exist
-                if not os.path.exists("downloads"):
-                    os.makedirs("downloads")
-
-                save_path_jpg = os.path.join("downloads", "detected_image.jpg")
-                cv2.imwrite(save_path_jpg, annotated_frame1)
-                st.success(f"Image with detections saved as detected_image.jpg")
-
-                save_path_png = os.path.join("downloads", "detected_image.png")
-                cv2.imwrite(save_path_png, cv2.cvtColor(annotated_frame1, cv2.COLOR_BGR2RGB))
-                st.success(f"Image with detections saved as detected_image.png")
-
-                # Save detections to JSON file
-                save_detections_to_json(os.path.join("downloads", "detections.json"), save_path_jpg, detections, conf)
-                st.write("Detections info saved to detections.json")
 
                 # Create download buttons for image and JSON
                 data_to_download = {
                     "image_path_jpg": save_path_jpg,
-                    "image_path_png": save_path_png,
                     "score_threshold": conf,
                     "detections": labels
                 }
@@ -156,12 +138,6 @@ def main():
                     data=json.dumps(data_to_download),
                     file_name="detected_image_info.jpg",
                     mime="image/jpeg"
-                )
-                st.download_button(
-                    label="Download Image with Detections (PNG)",
-                    data=json.dumps(data_to_download),
-                    file_name="detected_image_info.png",
-                    mime="image/png"
                 )
                 st.download_button(
                     label="Download Detections Info",
@@ -202,28 +178,10 @@ def main():
             st.json(labels)
             st.subheader("", divider='rainbow')
 
-            # Button to save image with detections
-            if st.button(f"Save {uploaded_file.name} with Detections"):
-                # Create downloads directory if it doesn't exist
-                if not os.path.exists("downloads"):
-                    os.makedirs("downloads")
-
-                save_path_jpg = os.path.join("downloads", f"{uploaded_file.name}_detected.jpg")
-                cv2.imwrite(save_path_jpg, annotated_frame1)
-                st.success(f"{uploaded_file.name} with detections saved as {uploaded_file.name}_detected.jpg")
-
-                save_path_png = os.path.join("downloads", f"{uploaded_file.name}_detected.png")
-                cv2.imwrite(save_path_png, cv2.cvtColor(annotated_frame1, cv2.COLOR_BGR2RGB))
-                st.success(f"{uploaded_file.name} with detections saved as {uploaded_file.name}_detected.png")
-
-                # Save detections to JSON file
-                save_detections_to_json(os.path.join("downloads", f"{uploaded_file.name}_detections.json"), save_path_jpg, detections, conf)
-                st.write(f"Detections info saved to {uploaded_file.name}_detections.json")
-
+    
                 # Create download buttons for image and JSON
                 data_to_download = {
                     "image_path_jpg": save_path_jpg,
-                    "image_path_png": save_path_png,
                     "score_threshold": conf,
                     "detections": labels
                 }
@@ -234,96 +192,11 @@ def main():
                     mime="image/jpeg"
                 )
                 st.download_button(
-                    label=f"Download {uploaded_file.name} with Detections (PNG)",
-                    data=json.dumps(data_to_download),
-                    file_name=f"{uploaded_file.name}_detected_info.png",
-                    mime="image/png"
-                )
-                st.download_button(
                     label=f"Download {uploaded_file.name} Detections Info",
                     data=json.dumps(data_to_download),
                     file_name=f"{uploaded_file.name}_detections_info.json",
                     mime="application/json"
                 )
-
-    elif choice == "Upload Video":
-        st.title("🏗️Work in Progress📽️🎞️")
-        clip = st.file_uploader("Choose a video file", type=['mp4'])
-
-        if clip:
-            video_content = clip.read()
-            video_buffer = BytesIO(video_content)
-            st.video(video_buffer)
-            with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as temp_file:
-                temp_filename = temp_file.name
-                temp_file.write(video_content)
-
-                results = model(temp_filename, show=False, stream=True, save=False)
-                for r in results:
-                    boxes = r.boxes
-                    masks = r.masks
-                    probs = r.probs
-                    orig_img = r.orig_img
-                    video_path = temp_filename
-
-                    cap = cv2.VideoCapture(video_path)
-                    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-                    with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as temp_file_o:
-                        temp_filename1 = temp_file_o.name
-                        output_path = temp_filename1
-                        out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'mp4v'), 30.0, (int(cap.get(3)), int(cap.get(4))))
-                        results_list = list(results)
-                        for frame_number in range(len(results_list)):
-                            ret, frame = cap.read()
-                            
-                            results_for_frame = results_list[frame_number]
-                            boxes = results_for_frame.boxes.xyxy.cpu().numpy()
-                            masks = results_for_frame.masks.tensor.cpu().numpy() if results_for_frame.masks is not None else None
-                            if results_for_frame.probs is not None:
-                                class_names_dict = results_for_frame.names
-                                class_indices = results_for_frame.probs.argmax(dim=1).cpu().numpy()
-                                class_names = [class_names_dict[class_idx] for class_idx in class_indices]
-                            else:
-                                class_names = []
-
-                            annotated_frame = draw_annotations(frame.copy(), boxes, masks, class_names)
-                            out.write(annotated_frame)
-
-                        cap.release()
-                        out.release()
-
-                        video_bytes = open(output_path, "rb")
-                        video_buffer2 = video_bytes.read()
-                        st.video(video_buffer2)
-                        st.success("Video processing completed.")
-
-                        # Create downloads directory if it doesn't exist
-                        if not os.path.exists("downloads"):
-                            os.makedirs("downloads")
-
-                        # Save detections to JSON file
-                        detections_list = []
-                        for result in results:
-                            detections = result.boxes.xyxy.cpu().numpy()
-                            confidences = result.scores.cpu().numpy()
-                            class_ids = result.pred.cpu().numpy()
-
-                            for box, conf, class_id in zip(detections, confidences, class_ids):
-                                detections_list.append({
-                                    "box": box.tolist(),
-                                    "confidence": float(conf),
-                                    "class_id": int(class_id)
-                                })
-
-                        with open(os.path.join("downloads", "video_detections.json"), 'w') as f:
-                            json.dump(detections_list, f)
-                        st.write("Detections saved to downloads/video_detections.json")
-
-    st.subheader("", divider='rainbow')
-    st.write(':orange[ Classes : ⤵️ ]')
-    cls_name = model.names
-    cls_lst = list(cls_name.values())
-    st.write(f':orange[{cls_lst}]')
 
 if __name__ == '__main__':
     main()
