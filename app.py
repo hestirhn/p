@@ -1,12 +1,10 @@
 import streamlit as st
 import logging
 import os
-import tempfile
 import av
 import cv2
 import numpy as np
-from PIL import Image
-from io import BytesIO
+import json
 from streamlit_webrtc import (
     ClientSettings,
     VideoTransformerBase,
@@ -15,8 +13,6 @@ from streamlit_webrtc import (
 )
 from ultralytics import YOLO
 import supervision as sv
-import json
-import shutil
 
 # Set the environment variable
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -30,12 +26,12 @@ zone_polygon_m = np.array([[160, 100],
                            [481, 100]], dtype=np.int32)
 
 # Initialize the YOLOv8 model
-@st.cache_resource
+@st.cache
 def load_yolo_model(model_path):
     return YOLO(model_path)
 
 # Load the YOLO model (this will be cached)
-model = load_yolo_model("best.pt")  # Ganti "best.pt" dengan nama model Anda
+model = load_yolo_model("best.pt")
 
 # Initialize the tracker, annotators and zone
 tracker = sv.ByteTrack()
@@ -91,8 +87,7 @@ def main():
     st.title("🤖 Ai Object Detection")
     st.subheader("YOLOv8 & Streamlit WebRTC Integration :)")
     st.sidebar.title("Select an option ⤵️")
-    choice = st.sidebar.radio("", ("Capture Image And Predict", ":rainbow[Multiple Images Upload -]🖼️🖼️🖼️", "Upload Video"),
-                            index = 1)
+    choice = st.sidebar.radio("", ("Capture Image And Predict", ":rainbow[Multiple Images Upload -]🖼️🖼️🖼️", "Upload Video"), index=1)
     conf = st.slider("Score threshold", 0.0, 1.0, 0.3, 0.05)
         
     if choice == "Capture Image And Predict":
@@ -126,32 +121,31 @@ def main():
             st.json(labels)
             st.subheader("", divider='rainbow')
 
-
-                # Create download buttons for image and JSON
-                data_to_download = {
-                    "image_path_jpg": save_path_jpg,
-                    "score_threshold": conf,
-                    "detections": labels
-                }
-                st.download_button(
-                    label="Download Image with Detections (JPG)",
-                    data=json.dumps(data_to_download),
-                    file_name="detected_image_info.jpg",
-                    mime="image/jpeg"
-                )
-                st.download_button(
-                    label="Download Detections Info",
-                    data=json.dumps(data_to_download),
-                    file_name="detections_info.json",
-                    mime="application/json"
-                )
+            # Create download buttons for image and JSON
+            save_path_jpg = "detected_image_info.jpg"  # Replace with actual save path
+            data_to_download = {
+                "image_path_jpg": save_path_jpg,
+                "score_threshold": conf,
+                "detections": labels
+            }
+            st.download_button(
+                label="Download Image with Detections (JPG)",
+                data=json.dumps(data_to_download),
+                file_name="detected_image_info.jpg",
+                mime="image/jpeg"
+            )
+            st.download_button(
+                label="Download Detections Info",
+                data=json.dumps(data_to_download),
+                file_name="detections_info.json",
+                mime="application/json"
+            )
 
     elif choice == ":rainbow[Multiple Images Upload -]🖼️🖼️🖼️":
         uploaded_files = st.file_uploader("Choose images", type=['png', 'jpg', 'webp', 'bmp'], accept_multiple_files=True)
         for uploaded_file in uploaded_files:
             bytes_data = uploaded_file.read()
             st.write("filename:", uploaded_file.name)
-            bytes_data = uploaded_file.getvalue()
             cv2_img = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
 
             results = model.predict(cv2_img)
@@ -178,25 +172,25 @@ def main():
             st.json(labels)
             st.subheader("", divider='rainbow')
 
-    
-                # Create download buttons for image and JSON
-                data_to_download = {
-                    "image_path_jpg": save_path_jpg,
-                    "score_threshold": conf,
-                    "detections": labels
-                }
-                st.download_button(
-                    label=f"Download {uploaded_file.name} with Detections (JPG)",
-                    data=json.dumps(data_to_download),
-                    file_name=f"{uploaded_file.name}_detected_info.jpg",
-                    mime="image/jpeg"
-                )
-                st.download_button(
-                    label=f"Download {uploaded_file.name} Detections Info",
-                    data=json.dumps(data_to_download),
-                    file_name=f"{uploaded_file.name}_detections_info.json",
-                    mime="application/json"
-                )
+            # Create download buttons for image and JSON
+            save_path_jpg = f"{uploaded_file.name}_detected_info.jpg"  # Replace with actual save path
+            data_to_download = {
+                "image_path_jpg": save_path_jpg,
+                "score_threshold": conf,
+                "detections": labels
+            }
+            st.download_button(
+                label=f"Download {uploaded_file.name} with Detections (JPG)",
+                data=json.dumps(data_to_download),
+                file_name=f"{uploaded_file.name}_detected_info.jpg",
+                mime="image/jpeg"
+            )
+            st.download_button(
+                label=f"Download {uploaded_file.name} Detections Info",
+                data=json.dumps(data_to_download),
+                file_name=f"{uploaded_file.name}_detections_info.json",
+                mime="application/json"
+            )
 
 if __name__ == '__main__':
     main()
