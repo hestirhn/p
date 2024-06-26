@@ -1,12 +1,10 @@
 import streamlit as st
 import logging
 import os
-import tempfile
 import av
 import cv2
 import numpy as np
-from PIL import Image
-from io import BytesIO
+import json
 from streamlit_webrtc import (
     ClientSettings,
     VideoTransformerBase,
@@ -15,7 +13,6 @@ from streamlit_webrtc import (
 )
 from ultralytics import YOLO
 import supervision as sv
-import json
 
 # Set the environment variable
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -29,12 +26,12 @@ zone_polygon_m = np.array([[160, 100],
                            [481, 100]], dtype=np.int32)
 
 # Initialize the YOLOv8 model
-@st.cache_resource
+@st.cache
 def load_yolo_model(model_path):
     return YOLO(model_path)
 
 # Load the YOLO model (this will be cached)
-model = load_yolo_model("best.pt")  # Ganti "best.pt" dengan nama model Anda
+model = load_yolo_model("best.pt")
 
 # Initialize the tracker, annotators and zone
 tracker = sv.ByteTrack()
@@ -70,22 +67,27 @@ def draw_annotations(frame, boxes, masks, names):
 
     return frame
 
-def save_detections_to_json(detections, file_path):
+def save_detections_to_json(file_path, image_path, detections, score_threshold):
     detections_data = [{
         "box": box.tolist(),
         "confidence": float(conf),
         "class_id": int(class_id)
     } for box, conf, class_id in zip(detections.xyxy, detections.confidence, detections.class_id)]
     
+    info = {
+        "image_path": image_path,
+        "score_threshold": score_threshold,
+        "detections": detections_data
+    }
+    
     with open(file_path, 'w') as f:
-        json.dump(detections_data, f)
+        json.dump(info, f)
 
 def main():
     st.title("🤖 Ai Object Detection")
     st.subheader("YOLOv8 & Streamlit WebRTC Integration :)")
     st.sidebar.title("Select an option ⤵️")
-    choice = st.sidebar.radio("", ("Capture Image And Predict", ":rainbow[Multiple Images Upload -]🖼️🖼️🖼️", "Upload Video"),
-                            index = 1)
+    choice = st.sidebar.radio("", ("Capture Image And Predict", ":rainbow[Multiple Images Upload -]🖼️🖼️🖼️", "Upload Video"), index=1)
     conf = st.slider("Score threshold", 0.0, 1.0, 0.3, 0.05)
         
     if choice == "Capture Image And Predict":
@@ -105,11 +107,6 @@ def main():
             detections = sv.Detections.from_ultralytics(results1)
             detections = detections[detections.confidence > conf]
             labels = [
-                f"#{index + 1}: {results1.names[class_id]}"
-                for index, class_id in enumerate(detections.class_id)
-            ]
-
-            labels1 = [
                 f"#{index + 1}: {results1.names[class_id]} (Accuracy: {detections.confidence[index]:.2f})"
                 for index, class_id in enumerate(detections.class_id)
             ]
@@ -121,25 +118,38 @@ def main():
             annotated_frame = av.VideoFrame.from_ndarray(annotated_frame1, format="bgr24")
             st.image(annotated_frame.to_ndarray(), channels="BGR")
             st.write(':orange[ Info : ⤵️ ]')
-            st.json(labels1)
+            st.json(labels)
             st.subheader("", divider='rainbow')
 
-            # Button to save image with detections
+            # Create download buttons for image and JSON
             if st.button("Save Image with Detections"):
                 save_path = "detected_image.jpg"
                 cv2.imwrite(save_path, annotated_frame1)
                 st.success(f"Image with detections saved as {save_path}")
+            
+                # Create download link for image
+                with open(save_path, "rb") as f:
+                    image_bytes = f.read()
+                st.download_button(
+                    label="Download Image with Detections (JPG)",
+                    data=image_bytes,
+                    file_name="detected_image.jpg",
+                    mime="image/jpeg"
 
-                # Save detections to JSON file
-                save_detections_to_json(detections, "detections.json")
-                st.write("Detections saved to detections.json")
+                    label="Download Detections Info",
+                    data=json.dumps(data_to_download),
+                    file_name="detections_info.json",
+                    mime="application/json"
+                
+                )
+            
+             
 
     elif choice == ":rainbow[Multiple Images Upload -]🖼️🖼️🖼️":
         uploaded_files = st.file_uploader("Choose images", type=['png', 'jpg', 'webp', 'bmp'], accept_multiple_files=True)
         for uploaded_file in uploaded_files:
             bytes_data = uploaded_file.read()
             st.write("filename:", uploaded_file.name)
-            bytes_data = uploaded_file.getvalue()
             cv2_img = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
 
             results = model.predict(cv2_img)
@@ -152,11 +162,6 @@ def main():
             detections = sv.Detections.from_ultralytics(results1)
             detections = detections[detections.confidence > conf]
             labels = [
-                f"#{index + 1}: {results1.names[class_id]}"
-                for index, class_id in enumerate(detections.class_id)
-            ]
-
-            labels1 = [
                 f"#{index + 1}: {results1.names[class_id]} (Accuracy: {detections.confidence[index]:.2f})"
                 for index, class_id in enumerate(detections.class_id)
             ]
@@ -168,89 +173,31 @@ def main():
             annotated_frame = av.VideoFrame.from_ndarray(annotated_frame1, format="bgr24")
             st.image(annotated_frame.to_ndarray(), channels="BGR")
             st.write(':orange[ Info : ⤵️ ]')
-            st.json(labels1)
+            st.json(labels)
             st.subheader("", divider='rainbow')
 
-            # Button to save image with detections
-            if st.button(f"Save {uploaded_file.name} with Detections"):
-                save_path = f"{uploaded_file.name}_detected.jpg"
+            # Create download buttons for image and JSON
+                 # Create download buttons for image and JSON
+            if st.button("Save Image with Detections"):
+                save_path = "detected_image.jpg"
                 cv2.imwrite(save_path, annotated_frame1)
                 st.success(f"Image with detections saved as {save_path}")
+            
+                # Create download link for image
+                with open(save_path, "rb") as f:
+                    image_bytes = f.read()
+                st.download_button(
+                    label="Download Image with Detections (JPG)",
+                    data=image_bytes,
+                    file_name="detected_image.jpg",
+                    mime="image/jpeg"
 
-                # Save detections to JSON file
-                save_detections_to_json(detections, f"{uploaded_file.name}_detections.json")
-                st.write(f"Detections saved to {uploaded_file.name}_detections.json")
-
-    elif choice == "Upload Video":
-        st.title("🏗️Work in Progress📽️🎞️")
-        clip = st.file_uploader("Choose a video file", type=['mp4'])
-
-        if clip:
-            video_content = clip.read()
-            video_buffer = BytesIO(video_content)
-            st.video(video_buffer)
-            with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as temp_file:
-                temp_filename = temp_file.name
-                temp_file.write(video_content)
-
-                results = model(temp_filename, show=False, stream=True, save=False)
-                detections_list = []
-                for r in results:
-                    boxes = r.boxes
-                    masks = r.masks
-                    probs = r.probs
-                    orig_img = r.orig_img
-                    video_path = temp_filename
-
-                    cap = cv2.VideoCapture(video_path)
-                    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-                    with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as temp_file_o:
-                        temp_filename1 = temp_file_o.name
-                        output_path = temp_filename1
-                        out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'mp4v'), 30.0, (int(cap.get(3)), int(cap.get(4))))
-                        results_list = list(results)
-                        for frame_number in range(len(results_list)):
-                            ret, frame = cap.read()
-                            
-                            results_for_frame = results_list[frame_number]
-                            boxes = results_for_frame.boxes.xyxy.cpu().numpy()
-                            masks = results_for_frame.masks.tensor.cpu().numpy() if results_for_frame.masks is not None else None
-                            if results_for_frame.probs is not None:
-                                class_names_dict = results_for_frame.names
-                                class_indices = results_for_frame.probs.argmax(dim=1).cpu().numpy()
-                                class_names = [class_names_dict[class_idx] for class_idx in class_indices]
-                            else:
-                                class_names = []
-
-                            annotated_frame = draw_annotations(frame.copy(), boxes, masks, class_names)
-                            out.write(annotated_frame)
-
-                            detections_list.append({
-                                "frame": frame_number,
-                                "detections": [{
-                                    "box": box.tolist(),
-                                    "class_name": class_name
-                                } for box, class_name in zip(boxes, class_names)]
-                            })
-                            
-                        cap.release()
-                        out.release()
-
-                        video_bytes = open(output_path, "rb")
-                        video_buffer2 = video_bytes.read()
-                        st.video(video_buffer2)
-                        st.success("Video processing completed.")
-
-                        # Save detections to JSON file
-                        with open("video_detections.json", 'w') as f:
-                            json.dump(detections_list, f)
-                        st.write("Detections saved to video_detections.json")
-
-    st.subheader("", divider='rainbow')
-    st.write(':orange[ Classes : ⤵️ ]')
-    cls_name = model.names
-    cls_lst = list(cls_name.values())
-    st.write(f':orange[{cls_lst}]')
+                    label="Download Detections Info",
+                    data=json.dumps(data_to_download),
+                    file_name="detections_info.json",
+                    mime="application/json"
+                
+                )
 
 if __name__ == '__main__':
     main()
