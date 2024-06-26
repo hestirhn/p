@@ -201,5 +201,6 @@ def main():
                     file_name="detections_info.json",
                     mime="application/json"
                 )
+
 if __name__ == '__main__':
     main()
