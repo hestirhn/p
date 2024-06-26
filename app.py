@@ -125,21 +125,32 @@ def main():
                 cv2.imwrite(save_path, annotated_frame1)
                 st.success(f"Image with detections saved as {save_path}")
 
+                save_path_png = "detected_image.png"
+                cv2.imwrite(save_path_png, cv2.cvtColor(annotated_frame1, cv2.COLOR_BGR2RGB))
+                st.success(f"Image with detections saved as {save_path_png}")
+
                 # Save detections to JSON file
                 save_detections_to_json(detections, "detections.json")
                 st.write("Detections saved to detections.json")
 
-                # Download button for image
+                # Download buttons for image
                 data_to_download = {
-                    "image_path": save_path,
+                    "image_path_jpg": save_path,
+                    "image_path_png": save_path_png,
                     "detections": labels,
                     "score_threshold": conf
                 }
                 st.download_button(
-                    label="Download Image with Detections",
+                    label="Download Image with Detections (JPG)",
                     data=json.dumps(data_to_download),
-                    file_name="detected_image_info.json",
-                    mime="application/json"
+                    file_name="detected_image_info.jpg",
+                    mime="image/jpeg"
+                )
+                st.download_button(
+                    label="Download Image with Detections (PNG)",
+                    data=json.dumps(data_to_download),
+                    file_name="detected_image_info.png",
+                    mime="image/png"
                 )
 
     elif choice == ":rainbow[Multiple Images Upload -]🖼️🖼️🖼️":
@@ -180,21 +191,32 @@ def main():
                 cv2.imwrite(save_path, annotated_frame1)
                 st.success(f"Image with detections saved as {save_path}")
 
+                save_path_png = f"{uploaded_file.name}_detected.png"
+                cv2.imwrite(save_path_png, cv2.cvtColor(annotated_frame1, cv2.COLOR_BGR2RGB))
+                st.success(f"Image with detections saved as {save_path_png}")
+
                 # Save detections to JSON file
                 save_detections_to_json(detections, f"{uploaded_file.name}_detections.json")
                 st.write(f"Detections saved to {uploaded_file.name}_detections.json")
 
-                # Download button for image
+                # Download buttons for image
                 data_to_download = {
-                    "image_path": save_path,
+                    "image_path_jpg": save_path,
+                    "image_path_png": save_path_png,
                     "detections": labels,
                     "score_threshold": conf
                 }
                 st.download_button(
-                    label=f"Download {uploaded_file.name} with Detections",
+                    label=f"Download {uploaded_file.name} with Detections (JPG)",
                     data=json.dumps(data_to_download),
-                    file_name=f"{uploaded_file.name}_detected_info.json",
-                    mime="application/json"
+                    file_name=f"{uploaded_file.name}_detected_info.jpg",
+                    mime="image/jpeg"
+                )
+                st.download_button(
+                    label=f"Download {uploaded_file.name} with Detections (PNG)",
+                    data=json.dumps(data_to_download),
+                    file_name=f"{uploaded_file.name}_detected_info.png",
+                    mime="image/png"
                 )
 
     elif choice == "Upload Video":
