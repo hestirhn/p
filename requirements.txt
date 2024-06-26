@@ -8,3 +8,4 @@ streamlit
 streamlit-webrtc==0.47.1
 supervision==0.16.0
 ultralytics==8.0.208
+opencv-contrib-python==3.4.0.12
